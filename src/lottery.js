@@ -79,7 +79,7 @@ function drawPrize(db, { player, activity, requestId, ip }) {
       .prepare(
         `SELECT * FROM prize
          WHERE activity_id = ? AND enabled = 1 AND weight > 0 AND (stock = -1 OR remaining > 0)
-         ORDER BY sort`
+         ORDER BY sort, id`
       )
       .all(activity.id);
     if (prizes.length === 0) throw new ApiError(500, '奖品已抽完，请联系组织者');
@@ -97,6 +97,14 @@ function drawPrize(db, { player, activity, requestId, ip }) {
     }
 
     const isWin = picked.type !== 'none';
+
+    // 展示扇区序号：按「启用奖品」的展示顺序（sort,id）取下标，与 /api/activity 下发的转盘扇区
+    // 顺序同源。不能用原始 sort 值——sort 存在重复/缺口时（如 7 个扇区出现 sort=7），前端按序号
+    // 取模会错位停到别的扇区（本次「中六等奖动画停在一等奖」即此因）
+    const displayPrizes = db
+      .prepare('SELECT id FROM prize WHERE activity_id = ? AND enabled = 1 ORDER BY sort, id')
+      .all(activity.id);
+    const segmentIndex = Math.max(0, displayPrizes.findIndex((d) => d.id === picked.id));
     let prizeCode = null;
     if (isWin) {
       prizeCode = genPrizeCode(db);
@@ -124,7 +132,7 @@ function drawPrize(db, { player, activity, requestId, ip }) {
     ).run(isWin ? 1 : 0, ip, player.id);
 
     const record = db.prepare('SELECT * FROM draw_record WHERE id = ?').get(info.lastInsertRowid);
-    return { replay: false, record, prize: picked };
+    return { replay: false, record, prize: picked, segmentIndex };
   });
   return run();
 }

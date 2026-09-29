@@ -52,7 +52,7 @@ module.exports = function apiRouter(db, cfg) {
   function activityPayload(act) {
     if (!act) return null;
     const prizes = db
-      .prepare('SELECT id, name, image, sort, type FROM prize WHERE activity_id = ? AND enabled = 1 ORDER BY sort')
+      .prepare('SELECT id, name, image, sort, type FROM prize WHERE activity_id = ? AND enabled = 1 ORDER BY sort, id')
       .all(act.id);
     return {
       id: act.id,
@@ -182,12 +182,18 @@ module.exports = function apiRouter(db, cfg) {
           sendPrizeEmail(db, replayRow.id).catch((e) => console.error('[邮件] 异步发送异常', e));
         });
       }
+      // 重放同样按「启用奖品展示顺序」换算扇区序号（与正常抽奖一致）；极端场景：中奖奖品事后被
+      // 停用导致不在展示列表，回退 0 号扇区，结果弹窗仍展示真实奖品与兑奖码
+      const displayIds = actNow
+        ? db.prepare('SELECT id FROM prize WHERE activity_id = ? AND enabled = 1 ORDER BY sort, id').all(actNow.id)
+        : [];
+      const segmentIndex = Math.max(0, displayIds.findIndex((d) => d.id === replayRow.prize_id));
       return res.json({
         isWin: !!replayRow.is_win,
         recordId: replayRow.id,
         prizeName: replayRow.prize_name,
         prizeImage: replayRow.prize_image || null,
-        segmentIndex: replayRow.prize_sort,
+        segmentIndex,
         prizeCode: replayRow.prize_code,
         mailStatus: replayRow.mail_status,
         remaining: actNow ? remainingFor(player.id, actNow) : null,
@@ -225,7 +231,7 @@ module.exports = function apiRouter(db, cfg) {
       recordId: result.record.id,
       prizeName: result.prize.name,
       prizeImage: result.prize.image || null,
-      segmentIndex: result.prize.sort,
+      segmentIndex: result.segmentIndex,
       prizeCode: result.record.prize_code,
       mailStatus: result.record.mail_status,
       remaining: remainingFor(player.id, act),
