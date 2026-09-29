@@ -8,11 +8,15 @@
   const $ = (id) => document.getElementById(id);
   const state = { playersPage: 1, recordsPage: 1, prizes: [] };
 
+  // API 前缀：后台页位于 /admin/（或子路径部署的 /lucky-wheel/admin/），取上级目录推导，
+  // 与服务端 BASE_PATH 挂载对齐；资产引用本就是相对路径，无需改动
+  const API_PREFIX = new URL('../', location.href).pathname.replace(/\/+$/, '');
+
   // —— 接口封装：401 统一回到登录页，其余错误 toast 后端业务文案 ——
   async function api(url, options = {}) {
     let res;
     try {
-      res = await fetch(url, {
+      res = await fetch(API_PREFIX + url, {
         method: options.method || 'GET',
         headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
         body: options.body ? JSON.stringify(options.body) : undefined,
@@ -324,10 +328,10 @@
     }
   }
 
-  // 导出走 <a> 下载（Cookie 自动携带）；筛选参数与列表查询一致，保证所见即所得
+  // 导出走 <a> 下载（Cookie 自动携带）；筛选参数与列表查询一致，保证所见即所得；带 API 前缀
   function downloadExport(path, filters) {
     const qs = new URLSearchParams(filters).toString();
-    window.open(path + (qs ? '?' + qs : ''));
+    window.open(API_PREFIX + path + (qs ? '?' + qs : ''));
   }
 
   function bind() {

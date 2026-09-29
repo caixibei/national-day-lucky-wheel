@@ -20,6 +20,13 @@ const adminRouter = require('./src/routes/admin');
 
 // 默认端口 3030（与 .env.example 一致）；可通过 .env 的 PORT 覆盖
 const PORT = Number(process.env.PORT || 3030);
+
+// 子路径部署（BASE_PATH）：与其他服务共用同一 nginx 站点、按 /lucky-wheel/ 子路径访问时设
+// BASE_PATH=/lucky-wheel，API 与静态资源随此前缀挂载；缺省为根路径部署，行为与原始版本一致
+const BASE_PATH =
+  process.env.BASE_PATH && process.env.BASE_PATH.trim() !== '/'
+    ? '/' + process.env.BASE_PATH.trim().replace(/^\/+|\/+$/g, '')
+    : '';
 const HTTPS_ONLY = process.env.HTTPS_ONLY === 'true';
 const TRUST_PROXY = process.env.TRUST_PROXY === 'true';
 
@@ -85,18 +92,20 @@ app.use(
   })
 );
 
-// 健康检查：供反代/运维探活，同时确认数据库可读
-app.get('/health', (req, res) => {
+// 健康检查：供反代/运维探活，同时确认数据库可读；子路径部署时随 BASE_PATH 前缀
+app.get(`${BASE_PATH}/health`, (req, res) => {
   db.prepare('SELECT 1').get();
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-app.use('/api', apiRouter(db, { trustProxy: TRUST_PROXY, httpsOnly: HTTPS_ONLY }));
-app.use('/api/admin', adminRouter(db, { trustProxy: TRUST_PROXY }));
+// API 与静态资源统一挂 BASE_PATH 前缀：根部署前缀为空（等价原 /api 路径），子路径部署自动携带
+app.use(`${BASE_PATH}/api`, apiRouter(db, { trustProxy: TRUST_PROXY, httpsOnly: HTTPS_ONLY }));
+app.use(`${BASE_PATH}/api/admin`, adminRouter(db, { trustProxy: TRUST_PROXY }));
 // API 404 兜底：避免未知接口路径落到静态资源逻辑
-app.use('/api', (req, res) => res.status(404).json({ message: '接口不存在' }));
-// 前端静态资源与 API 同源托管，浏览器端无需处理 CORS
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(`${BASE_PATH}/api`, (req, res) => res.status(404).json({ message: '接口不存在' }));
+// 前端静态资源与 API 同源托管，浏览器端无需处理 CORS；
+// nginx 反代场景下静态可由 nginx alias 直出（html/lucky-wheel/），此处挂载用于本地直跑
+app.use(BASE_PATH || '/', express.static(path.join(__dirname, 'public')));
 
 // 全局错误处理：业务异常透出中文提示；JSON 解析错误按 400 处理；其余统一 500，不向客户端泄漏堆栈
 app.use((err, req, res, next) => {

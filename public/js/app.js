@@ -31,11 +31,15 @@
     return 'req-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
   }
 
+  // API 前缀：由当前页面所在目录推导——根部署为 ''，子路径部署（如 /lucky-wheel/）自动带前缀，
+  // 与服务端 BASE_PATH 挂载对齐；页面前端资产同样使用相对路径，两种部署方式共用一套代码
+  const API_PREFIX = new URL('.', location.href).pathname.replace(/\/+$/, '');
+
   // —— 接口封装：4xx 展示后端业务提示，5xx 提示稍后再试，网络异常提示离线；写操作不自动重试 ——
   async function api(url, options = {}) {
     let res;
     try {
-      res = await fetch(url, {
+      res = await fetch(API_PREFIX + url, {
         method: options.method || 'GET',
         headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
         body: options.body ? JSON.stringify(options.body) : undefined,
