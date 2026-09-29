@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="2026 国庆大转盘抽奖：填写邮箱即可参与，奖品通过邮件发放" />
+  <meta name="theme-color" content="#A31621" />
+  <title>2026 国庆大转盘</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23D42A2A'/><circle cx='50' cy='50' r='28' fill='%23F7C948'/></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- 全局氛围装饰：光芒盘 / 金星 / 精修灯笼（纯 CSS，无图片资源） -->
+  <div class="lw-rays" aria-hidden="true"></div>
+  <div class="lw-stars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="lw-lantern lw-lantern-left" aria-hidden="true"><i class="lw-lantern-rope"></i><i class="lw-lantern-body"></i><i class="lw-lantern-tassel"></i></div>
+  <div class="lw-lantern lw-lantern-right" aria-hidden="true"><i class="lw-lantern-rope"></i><i class="lw-lantern-body"></i><i class="lw-lantern-tassel"></i></div>
+
+  <!-- 首屏：邮箱门。提醒文案必须醒目——奖品发放依赖邮箱正确性 -->
+  <section id="screen-gate" class="lw-screen" hidden>
+    <h1 class="lw-title"><i class="lw-tdeco">✦</i>2026 国庆大转盘<i class="lw-tdeco">✦</i></h1>
+    <p class="lw-subtitle">转一转 · 赢好运</p>
+    <div class="lw-card">
+      <div class="lw-card-head">输入邮箱 · 开启好运</div>
+      <label class="lw-label" for="emailInput">您的邮箱</label>
+      <input id="emailInput" class="lw-input" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="请输入邮箱地址" />
+      <p class="lw-warn"><span>⚠️</span><span>奖品将通过邮件发送至该邮箱，请确保填写正确</span></p>
+      <button id="enterBtn" class="lw-btn lw-btn-primary lw-btn-block">开始抽奖</button>
+      <p class="lw-privacy">提交即表示同意活动仅将您的邮箱与 IP 用于奖品发放与活动防作弊。</p>
+    </div>
+    <p id="gateNotice" class="lw-notice" hidden></p>
+  </section>
+
+  <!-- 转盘页 -->
+  <section id="screen-wheel" class="lw-screen" hidden>
+    <h1 class="lw-title lw-title-sm" id="wheelTitle"></h1>
+    <p class="lw-subtitle">共庆华诞 · 好运连连</p>
+    <p class="lw-remaining">剩余 <b id="remainingNum">-</b> 次抽奖机会</p>
+    <div class="lw-wheel-area">
+      <div class="lw-wheel-ring" id="wheelRing" aria-hidden="true"></div>
+      <canvas id="wheelCanvas" aria-label="抽奖转盘"></canvas>
+      <svg class="lw-pointer" viewBox="0 0 44 58" aria-hidden="true">
+        <defs>
+          <linearGradient id="lwPtrGold" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffe08a" />
+            <stop offset="0.55" stop-color="#f7c948" />
+            <stop offset="1" stop-color="#d9a421" />
+          </linearGradient>
+        </defs>
+        <path d="M22 56 C22 56 3 30 3 17 A19 15 0 0 1 41 17 C41 30 22 56 22 56 Z"
+              fill="url(#lwPtrGold)" stroke="#a31621" stroke-width="3" stroke-linejoin="round" />
+        <circle cx="22" cy="17" r="6.5" fill="#fff6e5" stroke="#d9a421" stroke-width="2" />
+      </svg>
+      <button id="spinBtn" class="lw-spin-btn"><span>开始</span><span>抽奖</span></button>
+    </div>
+    <div class="lw-entry-row">
+      <button id="recordsBtn" class="lw-btn lw-btn-ghost">🎁 我的奖品</button>
+      <button id="rulesBtn" class="lw-btn lw-btn-ghost">📜 活动规则</button>
+    </div>
+    <p class="lw-privacy">邮箱与 IP 仅用于奖品发放与活动防作弊</p>
+  </section>
+
+  <!-- 结果弹窗 -->
+  <div id="modalResult" class="lw-modal" hidden>
+    <div class="lw-modal-mask"></div>
+    <div class="lw-modal-body lw-result">
+      <button class="lw-modal-close" data-close="modalResult" aria-label="关闭">×</button>
+      <div id="resultWin">
+        <div class="lw-result-medal" aria-hidden="true">🏆</div>
+        <p class="lw-result-tag">🎊 恭喜中奖</p>
+        <p class="lw-result-prize" id="resultPrize"></p>
+        <div class="lw-result-code-row">
+          <span class="lw-result-code" id="resultCode"></span>
+          <button id="copyCodeBtn" class="lw-btn lw-btn-mini lw-btn-primary">复制</button>
+        </div>
+        <p class="lw-result-mail" id="resultMail"></p>
+        <button id="resendBtn" class="lw-btn lw-btn-ghost lw-resend" hidden>重新发送邮件</button>
+      </div>
+      <div id="resultLose" hidden>
+        <div class="lw-result-medal lw-result-medal-lose" aria-hidden="true">🙏</div>
+        <p class="lw-result-tag">很遗憾</p>
+        <p class="lw-result-lose-text">谢谢参与<br />好运就在下一次！</p>
+      </div>
+      <button class="lw-btn lw-btn-primary lw-btn-block" data-close="modalResult">开心收下</button>
+    </div>
+  </div>
+
+  <!-- 我的奖品弹窗 -->
+  <div id="modalRecords" class="lw-modal" hidden>
+    <div class="lw-modal-mask" data-close="modalRecords"></div>
+    <div class="lw-modal-body">
+      <button class="lw-modal-close" data-close="modalRecords" aria-label="关闭">×</button>
+      <p class="lw-modal-title">我的抽奖记录</p>
+      <div id="recordsList" class="lw-records"></div>
+    </div>
+  </div>
+
+  <!-- 活动规则弹窗 -->
+  <div id="modalRules" class="lw-modal" hidden>
+    <div class="lw-modal-mask" data-close="modalRules"></div>
+    <div class="lw-modal-body">
+      <button class="lw-modal-close" data-close="modalRules" aria-label="关闭">×</button>
+      <p class="lw-modal-title">活动规则</p>
+      <div id="rulesBody" class="lw-rules"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="lw-toast" hidden></div>
+  <div id="confetti" class="lw-confetti" aria-hidden="true"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

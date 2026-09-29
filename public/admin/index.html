@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>管理后台 · 国庆大转盘</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23A31621'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%23F7C948'>管</text></svg>" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <!-- 登录视图 -->
+  <section id="loginView" class="adm-login" hidden>
+    <form id="loginForm" class="adm-card adm-form">
+      <h1>国庆大转盘 · 管理后台</h1>
+      <label>用户名<input id="loginUser" autocomplete="username" required /></label>
+      <label>密码<input id="loginPass" type="password" autocomplete="current-password" required /></label>
+      <p id="loginErr" class="adm-err" hidden></p>
+      <button class="adm-btn adm-btn-primary adm-btn-block" type="submit">登录</button>
+      <p class="adm-tip">首次启动的随机密码打印在服务启动日志中</p>
+    </form>
+  </section>
+
+  <!-- 主视图：四个管理 Tab -->
+  <section id="appView" hidden>
+    <header class="adm-top">
+      <span class="adm-brand">🏮 国庆大转盘 · 管理后台</span>
+      <span class="adm-user">管理员：<b id="adminName"></b></span>
+      <button id="logoutBtn" class="adm-btn adm-btn-ghost">退出</button>
+    </header>
+    <nav class="adm-tabs">
+      <button class="adm-tab active" data-tab="activity">活动</button>
+      <button class="adm-tab" data-tab="prizes">奖品</button>
+      <button class="adm-tab" data-tab="players">参与者</button>
+      <button class="adm-tab" data-tab="records">抽奖记录</button>
+    </nav>
+    <main class="adm-main">
+      <div id="tab-activity" class="adm-panel">
+        <form id="activityForm" class="adm-form adm-card">
+          <h2>活动配置</h2>
+          <div class="adm-grid">
+            <label>活动名称<input id="actName" maxlength="50" required /></label>
+            <label>开始时间<input id="actStart" type="datetime-local" required /></label>
+            <label>结束时间<input id="actEnd" type="datetime-local" required /></label>
+            <label>每人每日次数<input id="actDaily" type="number" min="1" max="50" required /></label>
+            <label>活动总次数/人<input id="actTotal" type="number" min="1" max="200" required /></label>
+            <label>状态
+              <select id="actStatus">
+                <option value="draft">草稿（未开放）</option>
+                <option value="published">已发布（开放抽奖）</option>
+                <option value="closed">已关闭</option>
+              </select>
+            </label>
+          </div>
+          <div class="adm-actions">
+            <button class="adm-btn adm-btn-primary" type="submit">保存配置</button>
+            <button class="adm-btn" type="button" id="actPublish">发布活动</button>
+            <button class="adm-btn" type="button" id="actClose">关闭活动</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="tab-prizes" class="adm-panel" hidden>
+        <div class="adm-toolbar">
+          <button id="prizeAddBtn" class="adm-btn adm-btn-primary">新增奖品</button>
+          <span class="adm-tip">权重决定中奖概率（概率 = 权重 ÷ 总权重）；库存 -1 表示不限量；启用中奖品最多 12 个</span>
+        </div>
+        <table class="adm-table">
+          <thead><tr><th>扇区</th><th>名称</th><th>权重</th><th>库存/剩余</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="prizeTbody"></tbody>
+        </table>
+        <div id="prizeDialog" class="adm-modal" hidden>
+          <div class="adm-modal-mask" data-close-dialog="prizeDialog"></div>
+          <form id="prizeForm" class="adm-modal-body adm-form">
+            <h2 id="prizeDialogTitle">新增奖品</h2>
+            <input type="hidden" id="prizeId" />
+            <div class="adm-grid">
+              <label>奖品名称<input id="prizeName" maxlength="20" required /></label>
+              <label>类型
+                <select id="prizeType">
+                  <option value="virtual">虚拟奖品（邮件发放）</option>
+                  <option value="none">谢谢参与</option>
+                </select>
+              </label>
+              <label>权重（0~10000）<input id="prizeWeight" type="number" min="0" max="10000" required /></label>
+              <label>库存（-1 不限量）<input id="prizeStock" type="number" min="-1" max="1000000" /></label>
+              <label>图片 URL（可选）<input id="prizeImage" maxlength="300" placeholder="https://…" /></label>
+              <label>扇区顺序（0~99）<input id="prizeSort" type="number" min="0" max="99" required /></label>
+            </div>
+            <label class="adm-check"><input id="prizeEnabled" type="checkbox" checked /> 启用（参与者可见）</label>
+            <div class="adm-actions">
+              <button class="adm-btn adm-btn-primary" type="submit">保存</button>
+              <button class="adm-btn" type="button" id="prizeCancel">取消</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="tab-players" class="adm-panel" hidden>
+        <div class="adm-toolbar adm-filters">
+          <input id="pKeyword" placeholder="邮箱关键词" />
+          <input id="pIp" placeholder="IP 地址" />
+          <input id="pStart" type="date" title="参与起始日期" />
+          <input id="pEnd" type="date" title="参与截止日期" />
+          <select id="pBlack"><option value="">全部状态</option><option value="1">仅黑名单</option></select>
+          <button id="pSearch" class="adm-btn adm-btn-primary">查询</button>
+          <button id="pReset" class="adm-btn">重置</button>
+          <button id="pExport" class="adm-btn">导出 CSV</button>
+        </div>
+        <table class="adm-table">
+          <thead><tr><th>ID</th><th>邮箱</th><th>首次 IP</th><th>最近 IP</th><th>设备</th><th>抽奖/中奖</th><th>黑名单</th><th>参与时间</th><th>操作</th></tr></thead>
+          <tbody id="playerTbody"></tbody>
+        </table>
+        <div class="adm-pager">
+          <button id="pPrev" class="adm-btn adm-btn-mini">上一页</button>
+          <span id="playersPager"></span>
+          <button id="pNext" class="adm-btn adm-btn-mini">下一页</button>
+        </div>
+        <div id="playerDialog" class="adm-modal" hidden>
+          <div class="adm-modal-mask" data-close-dialog="playerDialog"></div>
+          <div class="adm-modal-body">
+            <h2>参与者详情</h2>
+            <p class="adm-detail-email"><b id="dEmail"></b></p>
+            <p id="dMeta" class="adm-detail-meta"></p>
+            <label>备注<textarea id="dRemark" rows="2" maxlength="200"></textarea></label>
+            <div class="adm-actions">
+              <button id="dSave" class="adm-btn">保存备注</button>
+              <button id="dBlackBtn" class="adm-btn adm-btn-danger">加入黑名单</button>
+              <button id="dClose" class="adm-btn adm-btn-ghost">关闭</button>
+            </div>
+            <h3>抽奖记录</h3>
+            <table class="adm-table">
+              <thead><tr><th>时间</th><th>奖品</th><th>兑奖码</th><th>IP</th><th>邮件状态</th></tr></thead>
+              <tbody id="dRecords"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-records" class="adm-panel" hidden>
+        <div class="adm-toolbar adm-filters">
+          <input id="rEmail" placeholder="邮箱关键词" />
+          <select id="rPrize"><option value="">全部奖品</option></select>
+          <select id="rWin"><option value="">全部结果</option><option value="1">仅中奖</option><option value="0">仅未中奖</option></select>
+          <select id="rMail">
+            <option value="">全部邮件状态</option>
+            <option value="pending">待发送</option>
+            <option value="sent">已发送</option>
+            <option value="failed">发送失败</option>
+            <option value="simulated">演练</option>
+          </select>
+          <input id="rStart" type="date" title="起始日期" />
+          <input id="rEnd" type="date" title="截止日期" />
+          <button id="rSearch" class="adm-btn adm-btn-primary">查询</button>
+          <button id="rReset" class="adm-btn">重置</button>
+          <button id="rExport" class="adm-btn">导出 CSV</button>
+        </div>
+        <table class="adm-table">
+          <thead><tr><th>时间</th><th>邮箱</th><th>奖品</th><th>结果</th><th>兑奖码</th><th>IP</th><th>邮件状态</th><th>操作</th></tr></thead>
+          <tbody id="recordTbody"></tbody>
+        </table>
+        <div class="adm-pager">
+          <button id="rPrev" class="adm-btn adm-btn-mini">上一页</button>
+          <span id="recordsPager"></span>
+          <button id="rNext" class="adm-btn adm-btn-mini">下一页</button>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <div id="admToast" class="adm-toast" hidden></div>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+/* 管理后台样式：adm- 前缀自定义类，浅色工作台风格，与参与者端红金主题区分。 */
+
+:root {
+  --adm-primary: #a31621;
+  --adm-gold: #d9a421;
+  --adm-bg: #f8f6f2;
+  --adm-line: #e3dccc;
+  --adm-text: #3b2b20;
+  --adm-muted: #8a7a6a;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--adm-bg);
+  color: var(--adm-text);
+  font-size: 14px;
+}
+
+/* —— 登录 —— */
+.adm-login { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.adm-card {
+  background: #fffdf7;
+  border: 1px solid var(--adm-line);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(90, 60, 20, 0.08);
+}
+.adm-login .adm-card { width: min(92vw, 380px); text-align: center; }
+.adm-login h1 { font-size: 20px; color: var(--adm-primary); margin: 0 0 18px; }
+.adm-tip { color: var(--adm-muted); font-size: 12px; }
+
+.adm-form label { display: block; font-size: 13px; color: var(--adm-muted); margin-bottom: 10px; text-align: left; }
+.adm-form input, .adm-form select, .adm-form textarea, .adm-filters input, .adm-filters select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--adm-line);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--adm-text);
+}
+.adm-form input:focus, .adm-filters input:focus, .adm-form select:focus { outline: 2px solid var(--adm-gold); border-color: var(--adm-gold); }
+.adm-err { color: var(--adm-primary); font-size: 13px; margin: 0 0 10px; }
+.adm-check { display: flex; align-items: center; gap: 8px; }
+.adm-check input { width: auto; margin: 0; }
+
+/* —— 按钮 —— */
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--adm-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--adm-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.adm-btn:hover { border-color: var(--adm-gold); }
+.adm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.adm-btn-primary { background: var(--adm-primary); border-color: var(--adm-primary); color: #fff; }
+.adm-btn-danger { color: var(--adm-primary); border-color: #e8b7bb; }
+.adm-btn-ghost { background: transparent; }
+.adm-btn-mini { min-height: 26px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
+.adm-btn-block { width: 100%; }
+
+/* —— 顶栏与 Tab —— */
+/* 顶栏浅白化：与参与者端浅色主题统一；退出按钮白底描边保证可读 */
+.adm-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #fffdf9;
+  border-bottom: 1px solid var(--adm-line);
+  color: var(--adm-text);
+}
+.adm-brand { font-weight: 700; font-size: 16px; color: var(--adm-primary); }
+.adm-user { margin-left: auto; font-size: 13px; color: var(--adm-muted); }
+.adm-top .adm-btn { background: #fff; border-color: var(--adm-line); color: var(--adm-text); }
+.adm-top .adm-btn:hover { border-color: var(--adm-primary); color: var(--adm-primary); }
+.adm-tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--adm-line); background: #fffdf7; }
+.adm-tab {
+  border: none;
+  background: transparent;
+  padding: 10px 18px;
+  font-size: 14px;
+  color: var(--adm-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+.adm-tab.active { color: var(--adm-primary); font-weight: 700; border-bottom-color: var(--adm-primary); }
+
+.adm-main { padding: 16px 20px 40px; }
+.adm-panel h2 { margin: 0 0 14px; font-size: 16px; color: var(--adm-primary); }
+.adm-panel h3 { margin: 18px 0 8px; font-size: 14px; color: var(--adm-primary); }
+.adm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 16px; }
+.adm-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+.adm-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.adm-filters input, .adm-filters select { width: auto; min-width: 130px; margin: 0; }
+
+/* —— 表格 —— */
+.adm-table { width: 100%; border-collapse: collapse; background: #fffdf7; border-radius: 10px; overflow: hidden; }
+.adm-table th, .adm-table td { padding: 9px 10px; border-bottom: 1px solid var(--adm-line); text-align: left; font-size: 13px; word-break: break-all; }
+.adm-table th { background: #f7f0df; color: var(--adm-muted); font-weight: 600; white-space: nowrap; }
+.adm-empty { text-align: center; color: var(--adm-muted); padding: 22px 0 !important; }
+
+.adm-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: #efe9da; color: var(--adm-muted); }
+.adm-tag-ok { background: #e3f5e3; color: #2c7a2c; }
+.adm-tag-danger { background: #fdeaea; color: var(--adm-primary); }
+
+.adm-pager { display: flex; align-items: center; gap: 14px; margin-top: 12px; color: var(--adm-muted); font-size: 13px; }
+
+/* —— 弹窗 —— */
+.adm-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.adm-modal-mask { position: absolute; inset: 0; background: rgba(50, 40, 20, 0.45); }
+.adm-modal-body {
+  position: relative;
+  width: min(94vw, 720px);
+  max-height: 84vh;
+  overflow: auto;
+  background: #fffdf7;
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+.adm-detail-email { font-size: 16px; margin: 0 0 6px; word-break: break-all; }
+.adm-detail-meta { color: var(--adm-muted); font-size: 12px; margin: 0 0 12px; word-break: break-all; }
+
+.adm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  z-index: 2000;
+  max-width: 80vw;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(40, 30, 20, 0.92);
+  color: #fff6e5;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .adm-filters input, .adm-filters select { min-width: 0; flex: 1 1 40%; }
+}

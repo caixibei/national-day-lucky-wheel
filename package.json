@@ -1,0 +1,22 @@
+{
+  "name": "national-day-lucky-wheel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "国庆大转盘抽奖游戏：Node.js + Express + SQLite3（better-sqlite3），奖品邮件发放",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.2.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "nodemailer": "^6.9.16"
+  }
+}
