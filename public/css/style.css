@@ -103,7 +103,7 @@ body {
 .lw-lantern-rope {
   display: block;
   width: 2px;
-  height: 56px;
+  height: 66px;
   margin: 0 auto;
   background: linear-gradient(#d9a421, #f7c948);
 }
