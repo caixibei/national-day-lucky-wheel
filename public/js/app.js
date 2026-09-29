@@ -104,6 +104,23 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  // 奖品名折行：含分隔符（·/•）时拆为「奖等 / 奖品」两行（如「三等奖」/「$48.88 额度」）；
+  // 无分隔符且超 6 字的纯长名对半折行，避免单行过长把字号压得过小
+  function wrapLabel(label) {
+    const s = String(label || '').trim();
+    const sepIdx = ['·', '•'].map((c) => s.indexOf(c)).filter((i) => i > 0).sort((a, b) => a - b)[0];
+    if (sepIdx !== undefined) {
+      const a = s.slice(0, sepIdx).trim();
+      const b = s.slice(sepIdx + 1).trim();
+      if (a && b) return [a, b];
+    }
+    if (s.length > 6) {
+      const i = Math.ceil(s.length / 2);
+      return [s.slice(0, i), s.slice(i)];
+    }
+    return [s];
+  }
+
   function drawWheel() {
     const prizes = state.activity ? state.activity.prizes : [];
     const n = prizes.length;
@@ -140,7 +157,28 @@
       const midDeg = (((midRad * 180) / Math.PI) % 360 + 360) % 360;
       const flip = midDeg > 90 && midDeg <= 270;
       if (flip) ctx.rotate(Math.PI);
-      const dist = r * 0.62;
+      // 扇区文字：折行后径向排布（行与行沿切向堆叠，左半盘翻转保证正向可读）；
+      // 字号双约束：① 最长一行 ≤ 径向可用长度（内缘避开中心按钮、外缘留边）② 两行总高 ≤ 中线处切向宽度
+      const lines = wrapLabel(p.name);
+      const dist = r * 0.64;
+      const radialSpan = r * 0.52;
+      const arcW = (2 * Math.PI * dist) / n;
+      let fontSize = 19;
+      const setFont = () => {
+        ctx.font = `bold ${fontSize}px 'PingFang SC','Microsoft YaHei',sans-serif`;
+      };
+      setFont();
+      const longest = Math.max(...lines.map((t) => ctx.measureText(t).width), 1);
+      if (longest > radialSpan) {
+        fontSize = Math.max(11, Math.floor((fontSize * radialSpan) / longest));
+        setFont();
+      }
+      const lineH = Math.round(fontSize * 1.3);
+      if (lines.length * lineH > arcW * 0.92) {
+        fontSize = Math.max(11, Math.floor((fontSize * arcW * 0.92) / (lines.length * lineH)));
+        setFont();
+      }
+      const lh = Math.round(fontSize * 1.3);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const img = state.images.get(p.id);
@@ -150,18 +188,17 @@
         ctx.drawImage(img, (flip ? -1 : 1) * r * 0.5 - d / 2, -d / 2, d, d);
         hasImg = true;
       }
-      const label = String(p.name || '');
-      // 字号自适应：以中线处扇区弧宽的 82% 为宽度上限，长名自动缩小避免溢出扇区
-      const maxW = ((2 * Math.PI * dist) / n) * 0.82;
-      const fontSize = Math.max(10, Math.min(18, Math.floor(maxW / Math.max(1, label.length))));
-      ctx.font = `bold ${fontSize}px 'PingFang SC','Microsoft YaHei',sans-serif`;
-      const textY = hasImg ? r * 0.3 : 0;
       const textX = flip ? -dist : dist;
-      // 双层描字：先画 1.5px 偏移的深色底层再画主色，模拟投影提升可读性
-      ctx.fillStyle = 'rgba(90, 10, 16, 0.35)';
-      ctx.fillText(label, textX, textY + 1.5);
-      ctx.fillStyle = TEXT_COLORS[i % 2];
-      ctx.fillText(label, textX, textY);
+      const yBase = hasImg ? r * 0.3 : 0;
+      // 翻转扇区两行的切向次序取反，保证「奖等」行在视觉上始终位于同一侧
+      const yOff = lines.length === 2 ? (flip ? [lh / 2, -lh / 2] : [-lh / 2, lh / 2]) : [0];
+      lines.forEach((t, k) => {
+        // 双层描字：先画 1.5px 偏移的深色底层再画主色，模拟投影提升可读性
+        ctx.fillStyle = 'rgba(90, 10, 16, 0.35)';
+        ctx.fillText(t, textX, yBase + yOff[k] + 1.5);
+        ctx.fillStyle = TEXT_COLORS[i % 2];
+        ctx.fillText(t, textX, yBase + yOff[k]);
+      });
       ctx.restore();
     });
     ctx.restore();
