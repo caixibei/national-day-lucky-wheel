@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * 中奖邮件模块：nodemailer 封装 + 演练模式 + 重发限频。
+ * 邮件模块：中奖通知 + 邮箱验证码，nodemailer 封装 + 演练模式 + 重发限频。
  * SMTP 凭据只从环境变量读取（不写入代码库）；未配置 SMTP 或 MAIL_DRY_RUN=true 时进入演练模式，
  * 邮件内容打印到服务端日志、状态记为 simulated，保证无 SMTP 环境也能完整验证流程。
  */
@@ -10,6 +10,7 @@ const nodemailer = require('nodemailer');
 let transporter = null;
 let dryRun = true;
 let mailFrom = '';
+let mailFromName = '华龙小助手';
 
 /**
  * 初始化邮件模块。SMTP 三要素（HOST/USER/PASS）任一缺失时强制演练模式并提示。
@@ -18,6 +19,8 @@ let mailFrom = '';
  */
 function initMailer(env) {
   mailFrom = env.MAIL_FROM || env.SMTP_USER || '';
+  // 发件人展示名：收件箱「发件人」列显示该名称而非裸邮箱地址；组织者可用 MAIL_FROM_NAME 覆盖
+  mailFromName = env.MAIL_FROM_NAME || '华龙小助手';
   dryRun = env.MAIL_DRY_RUN === 'true' || !env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS;
   if (!dryRun) {
     transporter = nodemailer.createTransport({
@@ -27,7 +30,7 @@ function initMailer(env) {
       secure: env.SMTP_SECURE !== 'false',
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
     });
-    console.log(`[邮件] SMTP 模式：${env.SMTP_HOST}:${env.SMTP_PORT || 465}，发件人 ${mailFrom}`);
+    console.log(`[邮件] SMTP 模式：${env.SMTP_HOST}:${env.SMTP_PORT || 465}，发件人 ${fromHeader()}`);
   } else {
     transporter = null;
     console.log('[邮件] 演练模式（MAIL_DRY_RUN=true 或 SMTP 配置不完整）：中奖邮件仅打印日志，状态记为 simulated');
@@ -38,6 +41,16 @@ function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (ch) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
   ));
+}
+
+/**
+ * 构造 From 头：mailFrom 未自带展示名（形如 "Name <addr>"）时，用 mailFromName 包裹；
+ * 非 ASCII 展示名由 nodemailer 按 RFC 2047 自动编码。
+ *
+ * @returns {string} RFC 5322 From 值
+ */
+function fromHeader() {
+  return mailFrom.includes('<') ? mailFrom : `${mailFromName} <${mailFrom}>`;
 }
 
 /**
@@ -64,6 +77,58 @@ function buildPrizeMail({ activityName, prizeName, prizeCode }) {
   </div>
 </div>`;
   return { subject, html };
+}
+
+/**
+ * 构造邮箱验证码邮件主题与正文。
+ *
+ * @param {{code: string, minutes: number}} m
+ * @returns {{subject: string, html: string}}
+ */
+function buildVerifyMail({ code, minutes }) {
+  const subject = `【国庆大转盘】邮箱验证码 ${code}`;
+  const html = `
+<div style="background:#FFF6E5;padding:24px;font-family:'PingFang SC','Microsoft YaHei',sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#D42A2A;border-radius:16px;padding:3px;">
+    <div style="background:#FFFDF7;border-radius:13px;padding:28px 24px;text-align:center;">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#A31621;">🏮 国庆大转盘 · 邮箱验证码</h1>
+      <p style="margin:0 0 16px;color:#3B2B20;font-size:14px;">您正在参与国庆大转盘活动，本次邮箱验证码为：</p>
+      <div style="font-size:26px;font-weight:700;letter-spacing:6px;color:#A31621;background:#FFF3D6;border:1px dashed #D9A421;border-radius:8px;padding:10px;margin:0 24px 16px;">${escapeHtml(code)}</div>
+      <p style="margin:0 0 6px;color:#3B2B20;font-size:13px;">验证码 ${minutes} 分钟内有效，请填入抽奖页完成邮箱校验；奖品将发送至该邮箱。</p>
+      <p style="margin:0;color:#8a7a6a;font-size:12px;">如非本人操作请忽略本邮件，切勿将验证码告知他人。本邮件由系统自动发送，请勿回复。</p>
+    </div>
+  </div>
+</div>`;
+  return { subject, html };
+}
+
+/**
+ * 发送邮箱验证码邮件（参与者注册前的可收信性校验）。
+ *
+ * <p>与中奖邮件共用 SMTP 通道与演练模式；发送结果只返回状态不落库，
+ * 冷却与错误次数限制由调用方在 email_code 表上原子控制。</p>
+ *
+ * @param {string} email 收件邮箱
+ * @param {string} code 6 位数字验证码
+ * @param {number} minutes 有效期分钟数（用于邮件文案）
+ * @returns {Promise<{status: string, reason?: string}>} sent / simulated / failed
+ */
+async function sendVerifyCodeEmail(email, code, minutes) {
+  const mail = buildVerifyMail({ code, minutes });
+  if (dryRun) {
+    console.log(`[邮件演练] 发件人=${fromHeader()} 收件人=${email} 主题=${mail.subject} 验证码=${code}`);
+    return { status: 'simulated' };
+  }
+  try {
+    await transporter.sendMail({ from: fromHeader(), to: email, subject: mail.subject, html: mail.html });
+    console.log(`[邮件] 验证码已发送 to=${email}`);
+    return { status: 'sent' };
+  } catch (err) {
+    // 发送失败不抛出：返回 failed 由调用方决定提示与冷却策略
+    const reason = String((err && err.message) || err).slice(0, 200);
+    console.error(`[邮件] 验证码发送失败 to=${email}：${reason}`);
+    return { status: 'failed', reason };
+  }
 }
 
 /**
@@ -115,13 +180,13 @@ async function sendPrizeEmail(db, recordId) {
 
   // 演练模式：只写日志并标记 simulated（区别于 sent），保留用户与后台的重发入口
   if (dryRun) {
-    console.log(`[邮件演练] 收件人=${rec.email} 主题=${mail.subject} 兑奖码=${rec.prize_code}`);
+    console.log(`[邮件演练] 发件人=${fromHeader()} 收件人=${rec.email} 主题=${mail.subject} 兑奖码=${rec.prize_code}`);
     db.prepare(`UPDATE draw_record SET mail_status = 'simulated' WHERE id = ?`).run(recordId);
     return { status: 'simulated' };
   }
 
   try {
-    await transporter.sendMail({ from: mailFrom, to: rec.email, subject: mail.subject, html: mail.html });
+    await transporter.sendMail({ from: fromHeader(), to: rec.email, subject: mail.subject, html: mail.html });
     db.prepare(
       `UPDATE draw_record SET mail_status = 'sent', mail_sent_at = datetime('now', 'localtime'),
        mail_fail_reason = NULL WHERE id = ?`
@@ -137,4 +202,4 @@ async function sendPrizeEmail(db, recordId) {
   }
 }
 
-module.exports = { initMailer, sendPrizeEmail, isDryRun: () => dryRun };
+module.exports = { initMailer, sendPrizeEmail, sendVerifyCodeEmail, isDryRun: () => dryRun };

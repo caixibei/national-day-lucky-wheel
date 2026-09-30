@@ -404,6 +404,7 @@
       ? [
           `活动时间：${a.startTime} 至 ${a.endTime}`,
           `每人每日可抽 ${a.dailyLimit} 次，活动期内累计 ${a.totalLimit} 次`,
+          '首次参与需先通过邮箱验证码校验，验证码用于确认邮箱可正常接收奖品邮件',
           '奖品通过邮件发放至您填写的邮箱，请确保邮箱正确；未收到请检查垃圾邮件或在「我的奖品」中重发',
           '兑奖码是领取奖品的唯一凭证，请妥善保存',
           '系统限制同一设备与同一 IP 的参与频率，请勿使用脚本刷奖，违者将被取消资格',
@@ -421,6 +422,17 @@
   }
 
   // —— 屏幕流转 ——
+
+  // 活动名称统一应用到各标题位（浏览器标签页 / 邮箱门首屏）：
+  // 后台可随时改名，HTML 里硬编码的活动名会与接口数据脱节，页面标题一律以接口返回为准
+  function applyActivityName() {
+    if (!state.activity || !state.activity.name) return;
+    document.title = state.activity.name;
+    // 兜底判断：旧版 HTML 被浏览器缓存时可能没有 #gateTitle 节点
+    const gateTitle = $('gateTitle');
+    if (gateTitle) gateTitle.textContent = state.activity.name;
+  }
+
   function enterWheel() {
     $('wheelTitle').textContent = state.activity ? state.activity.name : '国庆大转盘';
     updateRemaining();
@@ -433,10 +445,82 @@
   function showGate(notice) {
     show('screen-gate');
     hide('screen-wheel');
+    // 展示邮箱门时还原未结束的发码冷却：刷新/回退后按钮仍处于倒计时状态
+    restoreCodeCooldown();
     if (notice) {
       const n = $('gateNotice');
       n.textContent = notice;
       n.hidden = false;
+    }
+  }
+
+  // 验证码冷却倒计时句柄（IIFE 内模块级，跨多次发码复用）
+  let codeTimer = null;
+
+  // 发送邮箱验证码：验证码是「邮箱真实可收信」的唯一证明，也是奖品能否送达的第一道实检
+  async function sendCode() {
+    const email = $('emailInput').value.trim();
+    if (!EMAIL_RE.test(email)) {
+      toast('请先填写正确的邮箱地址，再获取验证码');
+      return;
+    }
+    const btn = $('sendCodeBtn');
+    btn.disabled = true;
+    try {
+      const data = await api('/api/email-code', { method: 'POST', body: { email } });
+      // 演练模式（无 SMTP）下后端透传 devCode，便于本地联调；生产环境无此字段
+      const msg = data.devCode ? `${data.message}（演练模式验证码：${data.devCode}）` : data.message;
+      toast(msg || '验证码已发送，请查收邮箱');
+      const cooldownSec = data.cooldownSec || 60;
+      saveCodeCooldown(cooldownSec);
+      startCodeCooldown(cooldownSec);
+    } catch (e) {
+      toast(e.message);
+      btn.disabled = false;
+    }
+  }
+
+  // 获取验证码按钮冷却：期间禁用并显示剩余秒数，防止连点轰炸 SMTP。
+  // 进入冷却必须显式置禁用——刷新还原路径没有 sendCode 的前置禁用，漏置会出现「显示倒计时却可点」
+  function startCodeCooldown(sec) {
+    const btn = $('sendCodeBtn');
+    let left = Number(sec) || 60;
+    clearInterval(codeTimer);
+    btn.disabled = true;
+    const tick = () => {
+      if (left <= 0) {
+        clearInterval(codeTimer);
+        codeTimer = null;
+        btn.textContent = '获取验证码';
+        btn.disabled = false;
+        return;
+      }
+      btn.textContent = `${left}s 后重发`;
+      left -= 1;
+    };
+    tick();
+    codeTimer = setInterval(tick, 1000);
+  }
+
+  // 冷却状态持久化：记录最近一次成功发码的时间与时长，刷新/重开页面后续接倒计时。
+  // localStorage 仅用于还原界面状态，防频繁发送的硬限制由后端 60 秒冷却与 429 兜底
+  function saveCodeCooldown(sec) {
+    try {
+      localStorage.setItem('lwCodeSentAt', String(Date.now()));
+      localStorage.setItem('lwCodeCooldownSec', String(sec));
+    } catch (e) {
+      /* 隐私模式等场景 localStorage 不可用：仅失去倒计时还原能力，功能不受影响 */
+    }
+  }
+
+  function restoreCodeCooldown() {
+    try {
+      const sentAt = Number(localStorage.getItem('lwCodeSentAt') || 0);
+      const sec = Number(localStorage.getItem('lwCodeCooldownSec')) || 60;
+      const left = Math.ceil(sec - (Date.now() - sentAt) / 1000);
+      if (left > 0) startCodeCooldown(left);
+    } catch (e) {
+      /* 同上：还原失败直接不倒计时，由后端 429 兜底 */
     }
   }
 
@@ -446,13 +530,20 @@
       toast('请填写正确的邮箱地址，奖品将通过邮件发送至该邮箱');
       return;
     }
+    // 验证码必填：确认邮箱真实可收信后才允许参与，防止因邮箱写错导致奖品发不出去
+    const code = $('codeInput').value.trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast('请先点击「获取验证码」，再输入邮箱收到的 6 位验证码');
+      return;
+    }
     const btn = $('enterBtn');
     btn.disabled = true;
     try {
-      const data = await api('/api/player', { method: 'POST', body: { email } });
+      const data = await api('/api/player', { method: 'POST', body: { email, code } });
       state.email = data.email;
       state.activity = data.activity;
       state.remaining = data.remaining;
+      applyActivityName();
       preloadImages();
       enterWheel();
     } catch (e) {
@@ -465,7 +556,12 @@
   async function init() {
     buildLamps();
     $('enterBtn').addEventListener('click', onEnter);
+    $('sendCodeBtn').addEventListener('click', sendCode);
+    // 邮箱框回车=获取验证码（第一步），验证码框回车=开始抽奖（第二步）
     $('emailInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendCode();
+    });
+    $('codeInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') onEnter();
     });
     $('spinBtn').addEventListener('click', onSpin);
@@ -505,6 +601,7 @@
     try {
       const data = await api('/api/activity');
       state.activity = data.activity;
+      applyActivityName();
       preloadImages();
     } catch (e) {
       showGate('活动加载失败，请稍后刷新重试');
@@ -524,6 +621,7 @@
       state.email = me.email;
       state.activity = me.activity;
       state.remaining = me.remaining;
+      applyActivityName();
       preloadImages();
       enterWheel();
       return;

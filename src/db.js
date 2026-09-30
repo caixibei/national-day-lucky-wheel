@@ -83,7 +83,37 @@ CREATE INDEX IF NOT EXISTS idx_record_player          ON draw_record(player_id);
 CREATE INDEX IF NOT EXISTS idx_record_prize           ON draw_record(prize_id);
 CREATE INDEX IF NOT EXISTS idx_record_time            ON draw_record(drawn_at);
 CREATE INDEX IF NOT EXISTS idx_record_mail_status     ON draw_record(mail_status);
+
+-- 邮箱验证码：注册前的可收信性校验。每邮箱一行，重复发码覆盖旧码并重置次数与时效；
+-- send_date/send_count 记录当日已发码次数，用于单邮箱每日上限
+CREATE TABLE IF NOT EXISTS email_code (
+  email        TEXT    NOT NULL PRIMARY KEY,
+  code         TEXT    NOT NULL,
+  expires_at   TEXT    NOT NULL,
+  attempts     INTEGER NOT NULL DEFAULT 0,
+  ip           TEXT,
+  last_sent_at TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+  send_date    TEXT,
+  send_count   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_email_code_ip ON email_code(ip, last_sent_at);
 `;
+
+/**
+ * 轻量迁移：email_code 表若创建于引入「每日发码上限」之前，补齐 send_date/send_count 两列。
+ * CREATE TABLE IF NOT EXISTS 不会为已存在的表补列，须用 PRAGMA 探测后 ALTER；
+ * 老数据 send_date 为 NULL，首次发码按新一天起算，不会被误判超限。
+ *
+ * @param {import('better-sqlite3').Database} db
+ */
+function migrateEmailCode(db) {
+  const cols = db.prepare('PRAGMA table_info(email_code)').all().map((c) => c.name);
+  if (cols.length > 0 && !cols.includes('send_date')) {
+    db.exec(`ALTER TABLE email_code ADD COLUMN send_date TEXT`);
+    db.exec(`ALTER TABLE email_code ADD COLUMN send_count INTEGER NOT NULL DEFAULT 0`);
+    console.log('[迁移] email_code 表已补齐 send_date/send_count 列（单邮箱每日发码上限）');
+  }
+}
 
 /**
  * 初始化数据库连接并完成建表与种子数据。
@@ -102,6 +132,7 @@ function initDb(dbPath) {
   // 写锁等待 5 秒：覆盖偶发 WAL 检查点写入，避免活动峰值时直接抛 SQLITE_BUSY
   db.pragma('busy_timeout = 5000');
   db.exec(SCHEMA);
+  migrateEmailCode(db);
   seed(db);
   return db;
 }

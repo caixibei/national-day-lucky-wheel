@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="2026 国庆大转盘抽奖：填写邮箱即可参与，奖品通过邮件发放" />
+  <meta name="description" content="国庆大转盘抽奖：填写邮箱即可参与，奖品通过邮件发放" />
   <meta name="theme-color" content="#A31621" />
-  <title>2026 国庆大转盘</title>
+  <title>国庆大转盘</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23D42A2A'/><circle cx='50' cy='50' r='28' fill='%23F7C948'/></svg>" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -18,13 +18,18 @@
 
   <!-- 首屏：邮箱门。提醒文案必须醒目——奖品发放依赖邮箱正确性 -->
   <section id="screen-gate" class="lw-screen" hidden>
-    <h1 class="lw-title"><i class="lw-tdeco">✦</i>2026 国庆大转盘<i class="lw-tdeco">✦</i></h1>
+    <h1 class="lw-title"><i class="lw-tdeco">✦</i><span id="gateTitle">国庆大转盘</span><i class="lw-tdeco">✦</i></h1>
     <p class="lw-subtitle">转一转 · 赢好运</p>
     <div class="lw-card">
       <div class="lw-card-head">输入邮箱 · 开启好运</div>
       <label class="lw-label" for="emailInput">您的邮箱</label>
-      <input id="emailInput" class="lw-input" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="请输入邮箱地址" />
+      <div class="lw-field-row">
+        <input id="emailInput" class="lw-input" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="请输入邮箱地址" />
+        <button id="sendCodeBtn" class="lw-btn lw-btn-code" type="button">获取验证码</button>
+      </div>
       <p class="lw-warn"><span>⚠️</span><span>奖品将通过邮件发送至该邮箱，请确保填写正确</span></p>
+      <label class="lw-label" for="codeInput">邮箱验证码</label>
+      <input id="codeInput" class="lw-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位数字，已发送至您的邮箱" />
       <button id="enterBtn" class="lw-btn lw-btn-primary lw-btn-block">开始抽奖</button>
       <p class="lw-privacy">提交即表示同意活动仅将您的邮箱与 IP 用于奖品发放与活动防作弊。</p>
     </div>

@@ -264,6 +264,9 @@ body {
 }
 .lw-btn-primary:not(:disabled):active { transform: translateY(3px); box-shadow: 0 1px 0 #b07f0e, 0 4px 10px rgba(150, 90, 30, 0.25), inset 0 2px 3px rgba(255, 255, 255, 0.7); }
 .lw-btn-block { width: 100%; }
+/* 纵向节奏：主按钮直接跟在输入框后时补 16px 呼吸间距，与上方区块间隔一致
+   （仅命中邮箱门「验证码输入框→开始抽奖」；行内按钮不带 btn-block、结果弹窗按钮不跟输入框） */
+.lw-input + .lw-btn-block { margin-top: 16px; }
 
 .lw-btn-ghost {
   background: linear-gradient(180deg, #d42a2a, var(--c-red-deep));
@@ -286,7 +289,8 @@ body {
 /* ---------- 邮箱门卡片 ---------- */
 .lw-card {
   position: relative;
-  width: min(92vw, 380px);
+  /* 420px：让底部隐私小字（约 330px 文本宽）在桌面端单行放下，避免末尾孤字换行 */
+  width: min(92vw, 420px);
   margin-top: 26px;
   padding: 34px 22px 22px;
   text-align: left;
@@ -337,6 +341,23 @@ body {
   box-shadow: inset 0 2px 5px rgba(120, 90, 40, 0.08);
 }
 .lw-input:focus { outline: none; border-color: var(--c-gold-deep); box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.35); }
+/* 邮箱 + 获取验证码同行：输入框占主导宽度，按钮收缩自适应不换行 */
+.lw-field-row { display: flex; gap: 10px; }
+.lw-field-row .lw-input { flex: 1; min-width: 0; }
+.lw-btn-code {
+  flex-shrink: 0;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #fff;
+  color: var(--c-red);
+  border: 2px solid var(--c-gold);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.lw-btn-code:not(:disabled):hover { background: #fff7e2; }
+.lw-btn-code:disabled { opacity: 0.55; cursor: not-allowed; }
 .lw-warn {
   display: flex;
   gap: 6px;
@@ -351,7 +372,8 @@ body {
   line-height: 1.55;
 }
 .lw-notice { margin-top: 18px; color: #c07f00; font-weight: 700; }
-.lw-privacy { margin: 20px 0 0; font-size: 11px; color: #b3a28c; }
+/* 隐私说明小字：深棕与弹窗辅助文字同色，11px 小字号下仍保持可读；作为脚注在按钮下方居中 */
+.lw-privacy { margin: 20px 0 0; font-size: 11px; color: #7a6a56; text-align: center; }
 
 /* ---------- 转盘区：三环 + 发光灯珠 + SVG 指针 + 立体中心按钮 ---------- */
 .lw-wheel-area {
@@ -489,7 +511,13 @@ body {
   text-align: center;
   box-shadow: 0 24px 60px rgba(120, 60, 30, 0.22), inset 0 1px 0 #fff;
   animation: lw-pop 0.3s var(--ease-pop);
+  /* 极矮视口下的兜底滚动同样用细滚动条，避免系统滚动条挤占卡片内容宽度 */
+  scrollbar-width: thin;
+  scrollbar-color: #e6cf9a transparent;
 }
+.lw-modal-body::-webkit-scrollbar { width: 6px; }
+.lw-modal-body::-webkit-scrollbar-track { background: transparent; }
+.lw-modal-body::-webkit-scrollbar-thumb { background: #e6cf9a; border-radius: 3px; }
 @keyframes lw-pop {
   from { transform: scale(0.72); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
@@ -560,7 +588,18 @@ body {
 .lw-result-lose-text { margin: 6px 0 18px; font-size: 20px; font-weight: 700; line-height: 1.7; color: var(--c-red); }
 
 /* ---------- 我的奖品列表 ---------- */
-.lw-records { text-align: left; }
+/* 滚动收归列表内部：标题与关闭按钮固定可见，不随记录一起滚出卡片 */
+.lw-records {
+  text-align: left;
+  max-height: min(56vh, 460px);
+  overflow-y: auto;
+  /* 细滚动条：系统默认粗滚动条会挤占内容宽度，把兑奖码挤出卡片可视区 */
+  scrollbar-width: thin;
+  scrollbar-color: #e6cf9a transparent;
+}
+.lw-records::-webkit-scrollbar { width: 6px; }
+.lw-records::-webkit-scrollbar-track { background: transparent; }
+.lw-records::-webkit-scrollbar-thumb { background: #e6cf9a; border-radius: 3px; }
 .lw-record-row {
   display: flex;
   align-items: center;
@@ -570,6 +609,8 @@ body {
   border-bottom: 1px dashed #e8d5b0;
 }
 .lw-record-row:last-child { border-bottom: none; }
+/* 左列允许收缩：长奖品名自动换行，而不是把整行撑出容器 */
+.lw-record-info { flex: 1; min-width: 0; }
 .lw-record-info b { display: block; font-size: 14px; }
 .lw-record-info span { font-size: 12px; color: #9a8b78; }
 .lw-record-side { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -629,4 +670,10 @@ body {
   .lw-stars i:nth-child(5) { display: none; }
   .lw-entry-row { gap: 10px; }
   .lw-btn-ghost { min-width: 0; flex: 1; }
+}
+
+/* ---------- PC 端微调 ---------- */
+@media (min-width: 521px) {
+  /* 标题与表单拉开距离：屏幕垂直居中，间隔增大后标题上移、卡片下移，不再相互贴近 */
+  .lw-card { margin-top: 56px; }
 }
